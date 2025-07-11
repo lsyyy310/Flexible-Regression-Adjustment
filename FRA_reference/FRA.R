@@ -6,7 +6,7 @@ library(ggplot2)
 library(readr)
 library(MASS) # for data
 
-
+# options(warn = 1)
 # Perform Flexible Regression Adjustment Pre-Processing
 # FRA(dat, outcome_cols, treat_col, covariate_cols, n_folds, method)
 # Inputs:
@@ -218,7 +218,7 @@ FRA_theta <- function(param_func, dat_with_FRA, outcome_treats) {
 
 
 
-# GOTV
+# GOTV (nrow=10829)
 #####
 data(GerberGreenImai)
 dat <- GerberGreenImai
@@ -261,6 +261,7 @@ dat_with_LRA <- FRA(dat, outcome_cols = c('Y'),
 FRA_ATE(dat_with_FRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
 FRA_ATE(dat_with_LRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
 
+# SDM
 dat %>% summarise(
   pe = mean(Y[W==3]) - mean(Y[W==4]),
   se = sqrt(var(Y[W==3]) / sum(W==3) + var(Y[W==3])/sum(W==3)))
