@@ -4,6 +4,7 @@ library(randomForest)
 library(numDeriv)
 library(ggplot2)
 library(readr)
+library(MASS) # for data
 
 
 # Perform Flexible Regression Adjustment Pre-Processing
@@ -14,7 +15,7 @@ library(readr)
 #   treat_col: column name of treatment
 #   covariate_cols: column names of covariates
 #   n_folds: number of folds for sample splitting
-#   method: regression method used for regression adjustment
+#   method: regression method used for regression adjustment -> c('linear', 'rf', 'gbm')
 #   ML_func: Custom ML model supplied by user. Should be of the form ML_func(formula, data).
 #            Output should have a predict function.
 #   
@@ -92,6 +93,7 @@ FRA <- function(dat, outcome_cols = c('Y'),
                                 dat %>% filter(f != fold, !!sym(treat_col) == treat),
                        interaction.depth = 2, n.trees = num_trees, shrinkage = 0.05,
                        distribution = 'gaussian', verbose = F)
+          # 這裡沒有 early stopping
           # Project fitted values based on covariates of current fold
           dat[dat$fold == f,paste('m_', y, '_', treat, sep = '')] <- predict(gbmMod, dat %>%
                                                                                filter(fold == f))
@@ -182,6 +184,7 @@ FRA_LATE <- function(dat_with_FRA, outcome_col = 'Y', endog_col = 'D', treat_lvl
   pe <- mean(tmp$u_num) / mean(tmp$u_denom)
   VCV <- 1/nrow(dat_with_FRA) * matrix(c(var(tmp$u_num), cov(tmp$u_num, tmp$u_denom),
                                          cov(tmp$u_num, tmp$u_denom), var(tmp$u_denom)), nrow = 2)
+  # Delta Method: gradient vector
   D <- c(1 / mean(tmp$u_denom), - mean(tmp$u_num) / mean(tmp$u_denom)^2)
   
   c(pe, sqrt(D %*% VCV %*% D))
@@ -221,7 +224,7 @@ data(GerberGreenImai)
 dat <- GerberGreenImai
 rm(GerberGreenImai)
 dat <- dat %>% mutate(Y = VOTED98, W = APPEAL) %>%
-  select(Y,W,WARD, AGE, MAJORPTY, VOTE96.0, VOTE96.1, NEW)
+  dplyr::select(Y, W, WARD, AGE, MAJORPTY, VOTE96.0, VOTE96.1, NEW)
 dat$WARD <- as.factor(dat$WARD)
 
 set.seed(6124)
