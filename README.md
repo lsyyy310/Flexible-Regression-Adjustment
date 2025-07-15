@@ -66,15 +66,6 @@ This R script provides four main functions to implement Flexible Regression Adju
 
 **Returns**: Vector with point estimate and standard error
 
-## Dependencies
-
-Required R packages:
-- `dplyr`: Data manipulation
-- `randomForest`: Random forest implementation
-- `gbm`: Gradient boosting implementation
-- `numDeriv`: Numerical derivatives for delta method
-- `xgboost`: XGBoost implementation (optional)
-
 ## Citation
 
 If you use this code, please cite the original paper:
