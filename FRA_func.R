@@ -4,6 +4,7 @@ library(gbm)
 library(randomForest)
 library(numDeriv)
 library(ggplot2)
+library(xgboost)
 
 
 # Perform Flexible Regression Adjustment Pre-Processing

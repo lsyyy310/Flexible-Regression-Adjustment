@@ -4,7 +4,7 @@ library(dplyr)
 
 # rm(list = ls(all = T))
 
-# GOTV (nrow=10829)
+# EXperiment: GOTV (nrow=10829)
 data(GerberGreenImai)
 dat = GerberGreenImai
 dat = dat %>% mutate(Y = VOTED98, W = APPEAL) %>%
