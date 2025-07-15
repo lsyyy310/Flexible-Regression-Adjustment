@@ -1,10 +1,10 @@
 source("./FRA_func.R")
-library(MASS)
+library(Matching)
 library(dplyr)
 
 # rm(list = ls(all = T))
 
-# EXperiment: GOTV (nrow=10829)
+# GOTV (nrow=10829)
 data(GerberGreenImai)
 dat = GerberGreenImai
 dat = dat %>% mutate(Y = VOTED98, W = APPEAL) %>%
