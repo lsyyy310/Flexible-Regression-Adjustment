@@ -186,8 +186,7 @@ FRA = function(dat, outcome_cols = c("Y"),
     for (y in outcome_cols) {
       dat = dat %>% mutate(
         !!sym(paste("u_", y, "_", treat, sep = "")) :=
-          case_when(!!sym(treat_col) == treat ~ 1/prop_treat *
-                      (!!sym(y) - !!sym(paste("m_", y, "_", treat, sep = ""))),
+          case_when(!!sym(treat_col) == treat ~ 1/prop_treat * (!!sym(y) - !!sym(paste("m_", y, "_", treat, sep = ""))),
                     TRUE ~ 0) + !!sym(paste("m_", y, "_", treat, sep = ""))
       )
     }
