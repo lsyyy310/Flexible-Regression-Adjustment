@@ -1,4 +1,5 @@
 # MacOS
+private/
 .DS_Store
 
 # History files
