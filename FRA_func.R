@@ -74,7 +74,9 @@ FRA = function(dat, outcome_cols = c("Y"),
         for (f in 1:n_folds) {
           # Fit random forest model using data from folds except current fold
           rfMod = randomForest(formula(paste(y, "~", paste(covariate_cols, collapse = "+"))),
-                               dat %>% filter(f != fold, !!sym(treat_col) == treat))
+                               dat %>% filter(f != fold, !!sym(treat_col) == treat),
+                               ntree = num_trees
+                               )
           # Project fitted values based on covariates of current fold
           dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = predict(rfMod, dat %>%
                                                                                filter(fold == f))
