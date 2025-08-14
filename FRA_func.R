@@ -2,6 +2,7 @@
 library(dplyr)
 library(gbm)
 library(randomForest)
+library(grf)
 library(numDeriv)
 library(ggplot2)
 library(xgboost)
@@ -158,6 +159,37 @@ FRA = function(dat, outcome_cols = c("Y"),
           )
           )
           dat[dat$fold == f, paste0("m_", y, "_", treat)] = predict(xgbMod, dpred)
+        }
+      }
+    }
+  }
+  else if (method == "grf") {
+    for (y in outcome_cols) {
+      for (treat in treat_levels) {
+        # Create new column for m_{outcome name}_{treatment name}
+        dat[, paste0("m_", y, "_", treat)] = 0
+        for (f in 1:n_folds) {
+          # Fit GRF model using data from folds except current fold
+          curr_dat = dat %>% filter(f != fold, !!sym(treat_col) == treat)
+          X = curr_dat %>%
+            select(covariate_cols) %>%
+            mutate(across(everything(), as.numeric))
+          Y = as.vector(curr_dat[[y]])
+          grfMod = regression_forest(X, Y,
+                                     sample.fraction = 1,
+                                     num.trees = num_trees,
+                                     mtry = floor(ncol(X) / 3),
+                                     ci.group.size = 1
+                                     )
+          
+          # Project fitted values based on covariates of current fold
+          X_pred = dat %>% 
+            filter(fold == f) %>%
+            select(covariate_cols) %>%
+            mutate(across(everything(), as.numeric))
+          dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = predict(grfMod, 
+                                                                             X_pred,
+                                                                             estimate.variance = F)
         }
       }
     }
