@@ -46,7 +46,109 @@ FRA = function(dat, outcome_cols = c("Y"),
   # Get unique treatment levels
   treat_levels = unique(dat[, treat_col]) %>% as.vector
   
+  fit_linear = function(data_train, data_test) {
+    formula_str = paste(y, " ~ ", paste(covariate_cols, collapse = " + "))
+    lmod = lm(formula(formula_str), data_train)
+    l_pred = predict(lmod, data_test)
+    
+    return(l_pred)
+  }
   
+  fit_rf = function(data_train, data_test) {
+    formula_str = paste(y, " ~ ", paste(covariate_cols, collapse = " + "))
+    rfMod = randomForest(formula(formula_str),
+                         data_train,
+                         ntree = num_trees
+    )
+    rf_pred = predict(rfMod, data_test)
+    
+    return(rf_pred)
+  }
+  
+  fit_gbm = function(data_train, data_test) {
+    formula_str = paste(y, " ~ ", paste(covariate_cols, collapse = " + "))
+    gbmMod = gbm(formula(formula_str),
+                 data_train,
+                 interaction.depth = 2, 
+                 n.trees = num_trees, 
+                 shrinkage = 0.05,
+                 distribution = "gaussian",
+                 verbose = F
+    )
+    gbm_pred = predict(gbmMod, data_test)
+    
+    return(gbm_pred)
+  }
+  
+  fit_xgb = function(data_train, data_test) {
+    # check if there is enough data for splitting
+    if (nrow(data_train) < 10) {
+      warning(paste("Not enough data for fold", f, "treatment", treat))
+      next
+    }
+    # create DMatrix (for xgboost)
+    val_idx = sample(nrow(data_train), max(1, floor(nrow(data_train) / 8)))
+    dtrain = xgb.DMatrix(
+      data = as.matrix(data_train[-val_idx, covariate_cols]), 
+      label = data_train[-val_idx, y]
+    )
+    dval = xgb.DMatrix(
+      data = as.matrix(data_train[val_idx, covariate_cols]), 
+      label = data_train[val_idx, y]
+    )
+    
+    watchlist = list(train = dtrain, eval = dval)
+    xgb_params = list(
+      objective = "reg:squarederror",
+      eta = 0.05,
+      max_depth = 3,
+      lambda = 3,  # L2 regularization
+      alpha = 1  # L1 regularization
+    )
+    
+    # Fit XGBoost machine model using data from folds except current fold
+    xgbMod = xgb.train(
+      params = xgb_params,
+      data = dtrain,
+      nrounds = num_trees,
+      colsample_bynode = 0.33,
+      watchlist = watchlist,
+      early_stopping_rounds = 10,
+      verbose = 0
+    )
+    
+    # Project fitted values based on covariates of current fold
+    dtest = xgb.DMatrix(
+      data = as.matrix(data_test %>% 
+                         dplyr::select(all_of(covariate_cols)))
+    )
+    xgb_pred = predict(xgbMod, dtest)
+    return(xgb_pred)
+  }
+  
+  fit_grf = function(data_train, data_test) {
+    X = data_train %>%
+      select(all_of(covariate_cols)) %>%
+      mutate(across(everything(), as.numeric))
+    Y = as.vector(data_train[[y]])
+    grfMod = regression_forest(X, Y,
+                               sample.fraction = 1,
+                               num.trees = num_trees,
+                               mtry = floor(ncol(X) / 3),
+                               ci.group.size = 1
+    )
+    
+    # Project fitted values based on covariates of current fold
+    X_test = data_test %>%
+      select(covariate_cols) %>%
+      mutate(across(everything(), as.numeric))
+    grf_pred = predict(grfMod, 
+                       X_test,
+                       estimate.variance = F)
+    
+    return(grf_pred)
+  }
+
   # Perform Crossfitting
   # Split out by method
   # For each outcome/treatment pair, create column called "m_{outcome name}_{treatment name}"
@@ -58,11 +160,11 @@ FRA = function(dat, outcome_cols = c("Y"),
         dat[, paste("m_", y, "_", treat, sep = "")] = 0
         for (f in 1:n_folds) {
           # Fit OLS model using data from folds except current fold
-          lmod = lm(formula(paste(y, "~", paste(covariate_cols, collapse = "+"))),
-                    dat %>% filter(f != fold, !!sym(treat_col) == treat))
           # Project fitted values based on covariates of current fold
-          dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = predict(lmod, dat %>%
-                                                                               filter(fold == f))
+          dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = fit_linear(
+            dat %>% filter(f != fold, !!sym(treat_col) == treat),
+            dat %>% filter(fold == f)
+          )
         }
       }
     }
@@ -74,13 +176,11 @@ FRA = function(dat, outcome_cols = c("Y"),
         dat[, paste("m_", y, "_", treat, sep = "")] = 0
         for (f in 1:n_folds) {
           # Fit random forest model using data from folds except current fold
-          rfMod = randomForest(formula(paste(y, "~", paste(covariate_cols, collapse = "+"))),
-                               dat %>% filter(f != fold, !!sym(treat_col) == treat),
-                               ntree = num_trees
-                               )
           # Project fitted values based on covariates of current fold
-          dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = predict(rfMod, dat %>%
-                                                                               filter(fold == f))
+          dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = fit_rf(
+            dat %>% filter(f != fold, !!sym(treat_col) == treat),
+            dat %>% filter(fold == f)
+          )
         }
       }
     }
@@ -92,18 +192,11 @@ FRA = function(dat, outcome_cols = c("Y"),
         dat[, paste("m_", y, "_", treat, sep = "")] = 0
         for (f in 1:n_folds) {
           # Fit gradient boosting machine model using data from folds except current fold
-          gbmMod = gbm(formula(paste(y, "~", paste(covariate_cols, collapse = "+"))),
-                       dat %>% filter(f != fold, !!sym(treat_col) == treat),
-                       interaction.depth = 2, 
-                       n.trees = num_trees, 
-                       shrinkage = 0.05,
-                       distribution = "gaussian",
-                       verbose = F
-          )
-          
           # Project fitted values based on covariates of current fold
-          dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = predict(gbmMod, dat %>%
-                                                                               filter(fold == f))
+          dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = fit_gbm(
+            dat %>% filter(f != fold, !!sym(treat_col) == treat),
+            dat %>% filter(fold == f)
+          )
         }
       }
     }
@@ -114,51 +207,11 @@ FRA = function(dat, outcome_cols = c("Y"),
         # Create new column for m_{outcome name}_{treatment name}
         dat[, paste0("m_", y, "_", treat)] = 0
         for (f in 1:n_folds) {
-          curr_dat = dat %>% filter(f != fold, !!sym(treat_col) == treat)
-          
-          # check if there is enough data for splitting
-          if (nrow(curr_dat) < 10) {
-            warning(paste("Not enough data for fold", f, "treatment", treat))
-            next
-          }
-          # create DMatrix (for xgboost)
-          val_idx = sample(nrow(curr_dat), max(1, floor(nrow(curr_dat) / 8)))
-          dtrain = xgb.DMatrix(
-            data = as.matrix(curr_dat[-val_idx, covariate_cols]), 
-            label = curr_dat[-val_idx, y]
-          )
-          dval = xgb.DMatrix(
-            data = as.matrix(curr_dat[val_idx, covariate_cols]), 
-            label = curr_dat[val_idx, y]
-          )
-          
-          watchlist = list(train = dtrain, eval = dval)
-          xgb_params = list(
-            objective = "reg:squarederror",
-            eta = 0.05,
-            max_depth = 3,
-            lambda = 3,  # L2 regularization
-            alpha = 1  # L1 regularization
-          )
-          
-          # Fit XGBoost machine model using data from folds except current fold
-          xgbMod = xgb.train(
-            params = xgb_params,
-            data = dtrain,
-            nrounds = num_trees,
-            watchlist = watchlist,
-            early_stopping_rounds = 10,
-            verbose = 0
-          )
-          
           # Project fitted values based on covariates of current fold
-          dpred = xgb.DMatrix(data = as.matrix(dat %>% 
-                                                 filter(fold == f) %>%
-                                                 dplyr::select(all_of(covariate_cols))
-                                               
+          dat[dat$fold == f, paste0("m_", y, "_", treat)] = fit_xgb(
+            dat %>% filter(f != fold, !!sym(treat_col) == treat),
+            dat %>% filter(fold == f)
           )
-          )
-          dat[dat$fold == f, paste0("m_", y, "_", treat)] = predict(xgbMod, dpred)
         }
       }
     }
@@ -170,26 +223,11 @@ FRA = function(dat, outcome_cols = c("Y"),
         dat[, paste0("m_", y, "_", treat)] = 0
         for (f in 1:n_folds) {
           # Fit GRF model using data from folds except current fold
-          curr_dat = dat %>% filter(f != fold, !!sym(treat_col) == treat)
-          X = curr_dat %>%
-            select(covariate_cols) %>%
-            mutate(across(everything(), as.numeric))
-          Y = as.vector(curr_dat[[y]])
-          grfMod = regression_forest(X, Y,
-                                     sample.fraction = 1,
-                                     num.trees = num_trees,
-                                     mtry = floor(ncol(X) / 3),
-                                     ci.group.size = 1
-                                     )
-          
           # Project fitted values based on covariates of current fold
-          X_pred = dat %>% 
-            filter(fold == f) %>%
-            select(covariate_cols) %>%
-            mutate(across(everything(), as.numeric))
-          dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = predict(grfMod, 
-                                                                             X_pred,
-                                                                             estimate.variance = F)
+          dat[dat$fold == f, paste("m_", y, "_", treat, sep = "")] = fit_grf(
+            dat %>% filter(f != fold, !!sym(treat_col) == treat),
+            dat %>% filter(fold == f)
+          )
         }
       }
     }
@@ -226,6 +264,8 @@ FRA = function(dat, outcome_cols = c("Y"),
       )
     }
   }
+  
+  rm(fit_linear, fit_rf, fit_gbm, fit_xgb, fit_grf)
   dat_with_FRA = dat
   dat_with_FRA
 }
