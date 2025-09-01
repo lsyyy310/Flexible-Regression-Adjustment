@@ -102,6 +102,7 @@ FRA = function(dat, outcome_cols = c("Y"),
       objective = "reg:squarederror",
       eta = 0.05,
       max_depth = 3,
+      colsample_bynode = 0.33,
       lambda = 3,  # L2 regularization
       alpha = 1  # L1 regularization
     )
@@ -111,7 +112,6 @@ FRA = function(dat, outcome_cols = c("Y"),
       params = xgb_params,
       data = dtrain,
       nrounds = num_trees,
-      colsample_bynode = 0.33,
       watchlist = watchlist,
       early_stopping_rounds = 10,
       verbose = 0
@@ -128,7 +128,7 @@ FRA = function(dat, outcome_cols = c("Y"),
   
   fit_grf = function(data_train, data_test) {
     X = data_train %>%
-      select(all_of(covariate_cols)) %>%
+      dplyr::select(all_of(covariate_cols)) %>%
       mutate(across(everything(), as.numeric))
     Y = as.vector(data_train[[y]])
     grfMod = regression_forest(X, Y,
@@ -144,7 +144,7 @@ FRA = function(dat, outcome_cols = c("Y"),
       mutate(across(everything(), as.numeric))
     grf_pred = predict(grfMod, 
                        X_test,
-                       estimate.variance = F)
+                       estimate.variance = F)$predictions
     
     return(grf_pred)
   }
