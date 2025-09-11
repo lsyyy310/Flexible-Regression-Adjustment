@@ -6,6 +6,7 @@ source("./private/data_preprocessing.R")
 source("FRA_func.R")
 
 
+# DATA PREPARATION -------------------------------------------------------------
 pre_periods = c(1:3)
 post_periods = c(9, 10)
 
@@ -25,6 +26,8 @@ post_period_cols = preprocess_results$post_period_cols
 
 rm(preprocess_results)
 
+
+# MAIN FRA ANALYSIS ------------------------------------------------------------
 # Y: c("usage_9", "usage_10")
 # W: "Treatment"
 # D: "T2y"
@@ -179,7 +182,7 @@ FRA_results$se = as.numeric(FRA_results$se)
 plot_coef(FRA_results)
 
 
-# bootstrap for FRA
+# BOOTSTRAP FOR FRA -------------------------------------------------------
 bootstrap_FRA = function(data,
                          post_periods, 
                          n_bootstrap = 1000,
