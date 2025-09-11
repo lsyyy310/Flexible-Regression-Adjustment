@@ -12,12 +12,12 @@ post_periods = c(9, 10)
 preprocess_results = preprocess(
   pre_periods = pre_periods,
   post_periods = post_periods,
-  preprocess_temp = F,
-  single_pre_usage = T,
-  imputation = F,
-  interaction = F,
-  factor_to_one_hot = T,
-  outcome_normalization = F
+  preprocess_temp = TRUE,
+  single_pre_usage = TRUE,
+  imputation = FALSE,
+  interaction = TRUE,
+  factor_to_one_hot = TRUE,
+  outcome_normalization = FALSE
 )
 
 model_dat = preprocess_results$data
@@ -47,8 +47,8 @@ run_FRA = function(data,
                    method = "linear",
                    n_folds = 3,
                    num_trees = 500,
-                   print_R2 = F,
-                   verbose = T) {
+                   print_R2 = FALSE,
+                   verbose = TRUE) {
   # Phase 2
   FRA_result = list()
   estimate_results = data.frame(
@@ -59,7 +59,7 @@ run_FRA = function(data,
 
   for (i in 1:length(post_periods)) {
     curr_period = post_periods[i]
-    if (verbose == T) {
+    if (verbose) {
       print(glue("fit period {curr_period} model..."))
     }
 
@@ -79,7 +79,7 @@ run_FRA = function(data,
       method = method
     )
     
-    if (print_R2 == T) {
+    if (print_R2) {
       # calculate R^2
       print(
         FRA_result[[i]] %>%
@@ -170,7 +170,7 @@ FRA_results = run_FRA(model_dat,
                       method = "linear",
                       n_folds = 5,
                       num_trees = 500,
-                      print_R2 = T)
+                      print_R2 = TRUE)
 
 
 # plot
@@ -207,7 +207,7 @@ bootstrap_FRA = function(data,
       else {
         bootstrap_estimates = cbind(bootstrap_estimates, curr_results$mu)      
       }
-    }, silent = T)
+    }, silent = TRUE)
   }
   
   colnames(bootstrap_estimates) = 1:ncol(bootstrap_estimates)
@@ -285,7 +285,7 @@ plot_bootstrap = function(bootstrap_results,
       xlim = c(min(curr_row), max(curr_row)),
       ylim = c(0, max(curr_density$y) + 10),
       xlab = "Estimate", 
-      ylab = "Density", freq = F
+      ylab = "Density", freq = FALSE
     )
     abline(
       v = ci_results[curr_treatment_type, "mean_estimate"],
@@ -333,5 +333,5 @@ bootstrap_estimates = bootstrap_FRA(
   n_bootstrap = 2000,
   n_folds = 5
 )
-bootstrap_ci = calculate_ci(bootstrap_estimates, original_estimates = estimate_results)
-plot_bootstrap(bootstrap_estimates, bootstrap_ci, estimate_results)
+bootstrap_ci = calculate_ci(bootstrap_estimates, original_estimates = FRA_results)
+plot_bootstrap(bootstrap_estimates, bootstrap_ci, FRA_results)
