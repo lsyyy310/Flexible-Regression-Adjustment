@@ -21,14 +21,13 @@ This R script provides four main functions to implement Flexible Regression Adju
 - `treat_col`: Column name of treatment variable
 - `covariate_cols`: Column names of covariates
 - `n_folds`: Number of folds for sample splitting (cross-fitting)
-- `method`: Regression method - `"linear"`, `"rf"` (random forest), `"gbm"` (gradient boosting), or `"xgb"` (XGBoost)
+- `method`: Regression method - `"linear"`, `"rf"` (random forest), `"gbm"` (gradient boosting), `"xgb"` (XGBoost), or `"grf"` (generalized random forest)
 - `ML_func`: Custom ML function (optional)
 - `num_trees`: Number of trees for tree-based methods
 
 **Returns**: Original dataframe with additional columns:
 - `m_{outcome name}_{treatment name}`: Fitted conditional expectation E[outcome | X, treatment]
 - `u_{outcome name}_{treatment name}`: Influence function for mean potential outcome E[outcome(treatment)]
-
 
 ### 2. `FRA_ATE()` - Average Treatment Effect Estimation
 
@@ -65,6 +64,27 @@ This R script provides four main functions to implement Flexible Regression Adju
 - `outcome_treats`: Vector of strings of the form `'{outcome name}_{treatment name}'` which are inputs into `param_func`
 
 **Returns**: Vector with point estimate and standard error
+
+## Applied Analysis Example (main_FRA.R)
+
+The `main_FRA.R` file demonstrates a comprehensive application of the FRA methodology to real experimental data from an ongoing research project. This script showcases how to implement FRA in practice for causal inference analysis.
+
+**Note**: This analysis uses proprietary experimental data from ongoing research and requires access to private preprocessing functions. The data files and preprocessing scripts are not included in this public repository for confidentiality reasons.
+
+### Key Features
+
+**Treatment Effect Estimation**:
+- Average Treatment Effects (ATE): Direct treatment comparisons between treatment groups
+- Local Average Treatment Effects (LATE): Instrumental variable estimation for cases with treatment compliance issues, using assignment as instrument for actual treatment takeup
+
+**Robustness and Inference**:
+- Bootstrap Analysis: Implements stratified bootstrap resampling (maintaining treatment group balance)
+- Confidence Intervals: Calculates bootstrap-based confidence intervals with bias correction and coverage assessment
+- Model Comparison: Support for multiple machine learning methods with R-squared evaluation
+
+**Visualization**:
+- Coefficient plots with multiple confidence intervals (90%, 95%, 99%)
+- Comparative visualization of original estimates vs. bootstrap results
 
 ## Citation
 
