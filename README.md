@@ -1,4 +1,4 @@
-# Flexible-Regression-Adjustment
+# Flexible Regression Adjustment
 
 This code is adapted from the implementation provided in the paper "Using Machine Learning for Efficient Flexible Regression Adjustment in Economic Experiments" by John A. List, Ian Muir, and Gregory K. Sun (NBER Working Paper 30756).
 
